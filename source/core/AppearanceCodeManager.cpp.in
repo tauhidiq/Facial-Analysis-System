@@ -1,0 +1,45 @@
+#include "AppearanceCodeManager.h"
+#include "Definitions.h"
+
+kifas::AppearanceCodeManager::AppearanceCodeManager()
+{	
+	registerAppearanceCodeClasses();
+}
+
+kifas::AppearanceCodeManager::~AppearanceCodeManager()
+{
+}
+
+/**
+	Registers all pre-processing instances to the GenericFactory 
+*/
+void kifas::AppearanceCodeManager::registerAppearanceCodeClasses()
+{
+//AppearanceCodeFactory
+@REG_FACTORY_APPCODES@
+}
+
+/**
+  Instanciates the BaseAppearanceCode class, according to what is specified in the string id.
+  @param id the type of code to instanciate.
+  @return true if sucess, false if the id is wrong.
+*/
+bool kifas::AppearanceCodeManager::selectAppearanceCode(std::string id)
+{	
+	mSelectedAppearanceCode = AppearanceCodeFactory::instance().create(id);
+
+	if(mSelectedAppearanceCode == NULL)
+		return false;
+	else
+		return true;
+}
+
+std::vector<cv::Mat> kifas::AppearanceCodeManager:: genAppearanceCode(std::vector<cv::Mat> &input)
+{
+    return mSelectedAppearanceCode->runCodeGenerate(input);
+}
+
+int kifas::AppearanceCodeManager::getCodeSize()
+{
+	return mSelectedAppearanceCode->getCodeSize();
+}

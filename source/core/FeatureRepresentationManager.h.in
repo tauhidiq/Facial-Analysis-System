@@ -1,0 +1,75 @@
+/**
+*  @file FeatureRepresentationManager.h
+*  Defines the manager class of the representation of facial feature vectors.
+*/
+
+/**
+* @defgroup featureRepresentation "Feature Representation Code"
+* The feature representation is a macro feature that operates in a normal or a coded image (with micro features, see @link appearanceCode the appearance codes @endlink).
+* This feature creates a feature vector that represents the entire image.
+*/
+
+#ifndef FeatureRepresentationManager_H_INCLUDED
+#define FeatureRepresentationManager_H_INCLUDED
+
+// OpenCV
+#include <cv.h>
+
+#include <list>
+
+#include "GenericFactory.h"
+#include "BaseFeatureRepresentation.h"
+#include "TraceMessage.h"
+@FT_RPTS_INCLUDES@
+
+namespace kifas
+{
+
+/**
+* Handles the access to the instance of the feature representation.
+* @ingroup core featureRepresentation
+*/
+class FeatureRepresentationManager
+{
+
+public:
+	/**
+	 Constructor
+	*/
+	FeatureRepresentationManager();
+
+	/**
+	 Destructor
+	*/
+	~FeatureRepresentationManager();
+
+	/**
+	 Register all feature representation instances to the GenericFactory 
+	*/
+	void RegisterFeatureRepresentationClasses();
+	
+
+	/**
+	 select a feature representation instance to the pre-pocesing list which stores BasePreprocessing class pointers 
+	 @return true if sucess , false if id is wrong
+	*/
+	bool SelectFeatureRepresentation(std::string id);
+	
+
+	cv::Mat genFeatureVectors(std::vector<cv::Mat> &input);
+    //cv::Mat genFeatureVectors(cv::Mat input);
+
+	int getFeatureLength();
+	void setCodeSize(int sie);
+    void setSequenceSize(int size);
+
+	int getFeatureType();
+protected:
+	cv::Ptr<BaseFeatureRepresentation> mSelectedFeatureRepresentation;
+};
+
+
+
+}
+
+#endif

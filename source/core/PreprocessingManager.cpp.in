@@ -1,0 +1,46 @@
+#include "PreprocessingManager.h"
+#include "Definitions.h"
+
+kifas::PreprocessingManager::PreprocessingManager()
+{
+	registerPreprocessingClasses();
+}
+
+kifas::PreprocessingManager::~PreprocessingManager()
+{
+
+}
+
+/**
+ Register all pre-processing instances to the GenericFactory 
+*/
+void kifas::PreprocessingManager::registerPreprocessingClasses()
+{
+@REG_FACTORY_PREPROS@
+}
+	
+
+/**
+ Make applied pre-processing instances to the pre-pocesing list which stores BasePreprocessing class pointers 
+*/
+bool kifas::PreprocessingManager::addPreprocessingInstanceToList(std::string id)
+{
+	cv::Ptr<BasePreprocessing> PtrPreprocessing;
+	PtrPreprocessing = PreprocessingFactory::instance().create(id);
+
+	mPreprocessingList.push_back(PtrPreprocessing);
+
+	return true;
+}
+	
+void kifas::PreprocessingManager::runAllPreprocessing(std::vector<cv::Mat> &input)
+{
+    std::list< cv::Ptr<BasePreprocessing> >::iterator it;
+
+	for ( it=mPreprocessingList.begin() ; it != mPreprocessingList.end(); it++ )
+	{
+		(*it)->RunPreprocessing(input);
+	}
+
+}
+

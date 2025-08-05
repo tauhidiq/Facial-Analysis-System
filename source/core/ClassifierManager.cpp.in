@@ -1,0 +1,439 @@
+#include "ClassifierManager.h"
+#include <list>
+#include "Exceptions.h"
+
+/** Constructor */
+kifas::ClassifierManager::ClassifierManager()
+{
+	registerClassifierClasses();
+    mClassNum =0;
+}
+
+/** Destructor */
+kifas::ClassifierManager::~ClassifierManager()
+{
+    ReleaseConfusionMatrix();
+}
+
+/**
+  Register all classifier instances to the GenericFactory 
+*/
+void kifas::ClassifierManager::registerClassifierClasses()
+{
+@REG_FACTORY_CLASSIFIERS@
+}
+	
+
+/**
+  Add a pre-processing instance to the pre-pocesing list which stores BasePreprocessing class pointers 
+*/
+bool kifas::ClassifierManager::selectClassifer(std::string id)
+{
+	mSelectedClassifer = ClassifierFactory::instance().create(id);
+
+	if(mSelectedClassifer == NULL)
+		return false;
+
+	return true;
+}
+	
+double kifas::ClassifierManager::runClassifierMutialVerificationPersonIndepent(cv::Mat trainningData, std::vector<int> truthTable, std::vector<int> personTable)
+{
+	int TrainningDataXsize = trainningData.size().width;	// feature vector size
+	int TrainningDataYsize = trainningData.size().height;	// the number of trainning data
+
+	if(personTable.size() == 0)
+		return 0.0;
+
+	if(personTable.size() != truthTable.size())
+		return 0.0;
+	
+	if(TrainningDataYsize != truthTable.size())
+		return 0.0;
+
+
+	int step = trainningData.step;			// step size of training data
+	int index;								//
+	int i,j;
+	double WellClassifiedNum = 0.0;
+	double TotalTestNum=0.0;
+	std::vector<int> TrainningTruthTable;
+	std::vector<int> TestTruthTable;
+
+	std::vector<int> tempPersonIDs = personTable;
+	std::vector<int> PersonIDNums;
+	std::vector<int> PersonIDsUnique;
+	// sort
+	std::sort(tempPersonIDs.begin(),tempPersonIDs.end());
+	PersonIDsUnique = tempPersonIDs;
+
+	std::vector<int>::iterator it_unique;
+	it_unique = std::unique(PersonIDsUnique.begin(),PersonIDsUnique.end());
+	PersonIDsUnique.resize(std::distance(PersonIDsUnique.begin(),it_unique));
+
+	PersonIDNums.resize(std::distance(PersonIDsUnique.begin(),PersonIDsUnique.end()));
+	for(i=0; i< PersonIDNums.size(); i++)	// zero setting
+		PersonIDNums[i] = 0;
+
+	int idIndex = 0;
+	for(i=0; i< tempPersonIDs.size(); i++)
+	{
+		if(tempPersonIDs[i] == PersonIDsUnique[idIndex])
+		{
+			PersonIDNums[idIndex]++;
+		}
+		else if(tempPersonIDs[i] != PersonIDsUnique[idIndex])
+		{
+			idIndex++;
+			PersonIDNums[idIndex]++;
+		}
+	}
+
+	for(i=0; i< PersonIDsUnique.size(); i++)
+	{
+
+		// create partitioned test data
+		cv::Mat test = cv::Mat(PersonIDNums[i],TrainningDataXsize,trainningData.type() );
+		test.setTo(0);
+		
+		// create partitioned trainning data
+		cv::Mat train = cv::Mat(personTable.size() -PersonIDNums[i] ,TrainningDataXsize,trainningData.type() );
+		train.setTo(0);
+
+		// make test data and truth tables.
+		int testIndex =0;
+		int trainIndex =0;
+		for(j=0; j < personTable.size(); j++)
+		{
+			// test
+			if(personTable[j] == PersonIDsUnique[i])
+			{
+				void *dst = test.ptr<uchar>(testIndex);
+				void *src = trainningData.ptr<uchar>(j);
+				memcpy(dst,src,step);
+				TestTruthTable.push_back(truthTable[j]);
+				testIndex++;
+			}
+			else // training
+			{
+				void *dst = train.ptr<uchar>(trainIndex);
+				void *src = trainningData.ptr<uchar>(j);
+				memcpy(dst,src,step);
+				TrainningTruthTable.push_back(truthTable[j]);
+				trainIndex++;
+			}
+		}
+
+		// Run classification
+        std::vector<int> testResult;
+        testResult.assign(TestTruthTable.size(),-1);
+		RunClassifier(train,TrainningTruthTable,test,testResult);
+
+        // calculate percentage
+        double CurrentResult =0;
+        for(j=0; j< testResult.size(); j++)
+            if( testResult[j] == TestTruthTable[j]) CurrentResult++;
+            
+        // Calculate results
+		WellClassifiedNum += CurrentResult;// *(double)(PersonIDNums[i]);
+		TotalTestNum += PersonIDNums[i];
+
+        // Calculate Confusion Matrix
+        AccConfusionMatrix(TestTruthTable,testResult);
+
+		// Output results on the screen
+		TraceMessage::addMessage(i);
+		TraceMessage::addMessage(" Person Result : ");
+		TraceMessage::addMessage(CurrentResult / (double)(PersonIDNums[i]) );
+		TraceMessage::addMessage(" ( ");
+		TraceMessage::addMessage((int)CurrentResult);
+		TraceMessage::addMessage(" / ");
+		TraceMessage::addMessage((int)PersonIDNums[i]);
+		TraceMessage::addMessageLine(" )");
+
+		TestTruthTable.clear();
+		TrainningTruthTable.clear();
+
+	}
+
+	return WellClassifiedNum / TotalTestNum;
+}
+
+double kifas::ClassifierManager::runClassifierMutualVerification(cv::Mat trainningData, std::vector<int> truthTable, int divideNum)
+{
+	// check if DivideNum is ok
+	// make sub region for mutual verification
+	// do mutual verification and calculate average percentage
+	// return
+	
+
+	int TrainningDataXsize = trainningData.size().width;	// feature vector size
+	int TrainningDataYsize = trainningData.size().height;	// the number of trainning data
+
+	// divide number should be larger than 1
+	if(divideNum <= 1)
+	{
+
+		return 0.0;
+	}
+
+	// The number of trainning data should larger than divide number
+	if(divideNum > TrainningDataYsize)
+	{
+
+		return 0.0;
+	}
+
+	int PartitionSize =  TrainningDataYsize / divideNum;
+	int RemainDataSize = TrainningDataYsize - PartitionSize;
+	int step = trainningData.step;
+	int index;
+	int i,j;
+	double WellClassifiedNum = 0.0;
+	double TotalTestNum=0.0;
+	std::vector<int> TrainningTruthTable;
+	std::vector<int> TestTruthTable;
+	
+	// Create random samples
+	int **partitions;
+	int lastPartitionSize = TrainningDataYsize -( divideNum * PartitionSize);
+	if(lastPartitionSize == 0)
+	{
+		partitions = new int*[divideNum];
+		for(i=0; i< divideNum; i++)
+		{
+			partitions[i] = new int[PartitionSize];
+		}
+	}
+	else
+	{
+		partitions = new int*[divideNum+1];
+		for(i=0; i< divideNum; i++)
+		{
+			partitions[i] = new int[PartitionSize];
+		}
+		partitions[divideNum] = new int[lastPartitionSize];
+	}
+
+	// set -1
+	for(i=0; i< TrainningDataYsize; i++)
+	{
+		int partitionId = i / PartitionSize;
+		int offset = i -(partitionId*PartitionSize) ;
+		partitions[partitionId][offset] = -1;
+	}
+
+	// generating random partitions for mutual certifications
+	srand( time( NULL));
+	std::vector<int> list;
+	for(i=0; i< TrainningDataYsize; i++)
+	{
+		int ranValue; 
+		int partitionId;
+		int offset;
+
+		do{
+			ranValue = rand() % TrainningDataYsize;
+			partitionId = ranValue / PartitionSize;
+			offset = ranValue -(partitionId*PartitionSize) ;
+	
+		}while(partitions[partitionId][offset] != -1);
+
+		partitions[partitionId][offset] = i;
+		
+	}
+
+	for(i=0; i<= divideNum; i++)
+	{
+		// check the last partition 
+		if((divideNum == i) && (lastPartitionSize != 0)){
+			PartitionSize = lastPartitionSize;
+			RemainDataSize = TrainningDataYsize - lastPartitionSize;
+		}
+		else if((divideNum == i) && (lastPartitionSize == 0)){
+			continue;
+		}
+
+		// create partitioned test data
+		cv::Mat test = cv::Mat(PartitionSize,TrainningDataXsize,trainningData.type() );
+		test.setTo(0);
+		
+		// create partitioned trainning data
+		cv::Mat train = cv::Mat(RemainDataSize,TrainningDataXsize,trainningData.type() );
+		train.setTo(0);
+
+		// make test data and truth tables.
+		for(j=0; j < PartitionSize; j++)
+		{
+			void *dst = test.ptr<uchar>(j);
+			void *src = trainningData.ptr<uchar>(partitions[i][j]);
+			memcpy(dst,src,step);
+			TestTruthTable.push_back(truthTable[partitions[i][j]]);
+		}
+		
+		// make train data and truth tables. 
+		index =0;
+		for(j=0; j<divideNum; j++)
+		{
+			int k;
+
+			if(j == i)
+				continue;
+
+			int partsize = TrainningDataYsize / divideNum;
+			for(k=0; k<partsize; k++)
+			{
+				void *dst = train.ptr<uchar>(index);
+				void *src = trainningData.ptr<uchar>(partitions[j][k]);
+				memcpy(dst,src,step);
+				TrainningTruthTable.push_back(truthTable[partitions[j][k]]);
+				index++;
+			}
+		}
+
+		if((lastPartitionSize != 0) && (i != divideNum))
+		{
+			int k;
+			for(k=0; k<lastPartitionSize; k++)
+			{
+				void *dst = train.ptr<uchar>(index);
+				void *src = trainningData.ptr<uchar>(partitions[divideNum][k]);
+				memcpy(dst,src,step);
+				TrainningTruthTable.push_back(truthTable[partitions[divideNum][k]]);
+				index++;
+			}
+		}
+
+        
+		// Run classification
+        std::vector<int> testResult;
+        testResult.assign(TestTruthTable.size(),-1);
+		RunClassifier(train,TrainningTruthTable,test,testResult);
+
+        // calculate percentage
+        double CurrentResult =0;
+        for(j=0; j< testResult.size(); j++)
+            if( testResult[j] == TestTruthTable[j]) CurrentResult++;
+
+        // Calculate results
+		WellClassifiedNum += CurrentResult;// *(double)PartitionSize;
+		TotalTestNum += PartitionSize;
+
+        // Calculate Confusion Matrix
+        AccConfusionMatrix(TestTruthTable,testResult);
+
+		// Output results on the screen
+		TraceMessage::addMessage(i);
+		TraceMessage::addMessage(" Result : ");
+		TraceMessage::addMessage(CurrentResult / (double)PartitionSize);
+		TraceMessage::addMessage(" ( ");
+		TraceMessage::addMessage((int)CurrentResult);
+		TraceMessage::addMessage(" / ");
+		TraceMessage::addMessage((int)PartitionSize);
+		TraceMessage::addMessageLine(" )");
+
+		TestTruthTable.clear();
+		TrainningTruthTable.clear();
+	}
+
+	// deallocate dynamic allocated memory
+	for(i=0; i< divideNum; i++)
+		delete []partitions[i];
+	if(lastPartitionSize != 0)
+		delete []partitions[divideNum];
+	
+	delete []partitions;
+	
+	return WellClassifiedNum / TotalTestNum;
+}
+
+
+void kifas::ClassifierManager::RunClassifier(cv::Mat trainningData, std::vector<int> &trainningTruthTable, cv::Mat testData, std::vector<int> &testResultTable)
+{
+	mSelectedClassifer->runClassification(trainningData, trainningTruthTable, testData, testResultTable);
+	
+	//return r;
+}
+
+void kifas::ClassifierManager::SetConfusionMatrix(int classNum)
+{
+    ReleaseConfusionMatrix();
+
+    int i,j;
+
+    // check the number of class
+    if( classNum < 2)
+        throw KifasExpeption("[ClassifierManager::SetConfusionMatrix] :The number of classes must be higher than two.\n");
+
+    // Dynamic Allocation
+    mConfusionMatrix = new int *[classNum];
+    for(i=0; i< classNum; i++)
+        mConfusionMatrix[i] = new int[classNum];
+
+    // initialization as 0 
+	for(i=0; i<classNum; i++)
+		for(j=0; j<classNum; j++)
+			mConfusionMatrix[i][j] = 0;
+
+    mClassNum = classNum;
+}
+
+void kifas::ClassifierManager::ReleaseConfusionMatrix()
+{
+    if(mConfusionMatrix == NULL)
+        return;
+
+    if(mClassNum <=0)
+        return;
+
+    int i;
+
+    for(i=0; i< mClassNum; i++)
+        delete[] mConfusionMatrix[i];
+
+    delete[] mConfusionMatrix;
+}
+
+void kifas::ClassifierManager::AccConfusionMatrix(std::vector<int> &testTruthTable, std::vector<int> &testResult)
+{
+    if( testTruthTable.size() != testResult.size())
+    {
+        throw KifasExpeption("[ClassifierManager::AccConfusionMatrix] :The size of truth table and test result should be same.\n");
+    }
+
+    int i;
+    for(i=0; i< testTruthTable.size(); i++)
+    {
+        if( (testTruthTable[i] < 0) || (testTruthTable[i] >= mClassNum) )
+            throw KifasExpeption("[ClassifierManager::AccConfusionMatrix] :The class id in truth table is not between 0 and the number of classes.");
+
+        if( (testResult[i] < 0) || (testResult[i] >= mClassNum) )
+            throw KifasExpeption("[ClassifierManager::AccConfusionMatrix] :The class id in test result is not between 0 and the number of classes.");
+
+        mConfusionMatrix[testTruthTable[i]][testResult[i]]++;
+    }
+}
+
+void kifas::ClassifierManager::PrintConfusionMatrix()
+{
+    if( mClassNum <= 0)
+        return;
+
+    if( mConfusionMatrix == NULL)
+        return;
+
+    int i,j;
+
+    for( i=0; i< mClassNum; i++)
+    {
+        std::ostringstream lineString;
+
+        for(j=0; j< mClassNum; j++)
+        {
+            lineString<<std::setw(8);
+            lineString<<mConfusionMatrix[i][j]<<" ";
+        }
+
+        TraceMessage::addMessageLine(lineString.str());
+    }
+}

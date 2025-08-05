@@ -1,0 +1,76 @@
+#include "FeatureRepresentationManager.h"
+#include "Definitions.h"
+
+/**
+ Constructor
+*/
+kifas::FeatureRepresentationManager::FeatureRepresentationManager()
+{
+	RegisterFeatureRepresentationClasses();
+}
+
+/**
+ Destructor
+*/
+kifas::FeatureRepresentationManager::~FeatureRepresentationManager()
+{
+}
+
+/**
+ Register all feature representation instances to the GenericFactory 
+*/
+void kifas::FeatureRepresentationManager::RegisterFeatureRepresentationClasses()
+{
+@REG_FACTORY_FT_RPTS@
+}
+	
+
+/**
+ Creates the instance of the BasePreprocessing class according to the specified type.
+ @param id the type of the preprocessing class to create.
+ @return true if sucess, false if the id is wrong.
+*/
+bool kifas::FeatureRepresentationManager::SelectFeatureRepresentation(std::string id)
+{
+	mSelectedFeatureRepresentation = FeatureRepresentationFactory::instance().create(id);
+
+	if(mSelectedFeatureRepresentation == NULL)
+		return false;
+	else
+		return true;
+	
+}
+	
+/**
+* Generates the feature vector for the given image.
+* @param input the image to create the feature vector from.
+* @return the feature vector.
+*/
+cv::Mat kifas::FeatureRepresentationManager::genFeatureVectors(std::vector<cv::Mat> &input)
+{
+	return mSelectedFeatureRepresentation->runFeatureVectors(input);
+}
+
+/**
+* Obtains the length of the selected feature.
+* @return the length of the current feature.
+*/
+int kifas::FeatureRepresentationManager::getFeatureLength()
+{
+  return mSelectedFeatureRepresentation->getFeatureLength();
+}
+
+
+void kifas::FeatureRepresentationManager::setCodeSize(int size){
+	mSelectedFeatureRepresentation->setCodeSize(size);
+}
+
+void kifas::FeatureRepresentationManager::setSequenceSize(int size)
+{
+    mSelectedFeatureRepresentation->setSequenceSize(size);
+}
+
+int  kifas::FeatureRepresentationManager::getFeatureType(){
+
+	return mSelectedFeatureRepresentation->getFeatureType();
+}

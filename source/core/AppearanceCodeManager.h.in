@@ -1,0 +1,55 @@
+/**
+  @file AppearanceCodeManager.h
+  This files defines the Manager class of appearance codes, for examples LDP, LBP,..., .
+*/
+
+/**
+  @defgroup appearanceCode "Appearance Code"
+  The appearance codes are the micro codes that can transform the image into a different micro feature.
+  For example, LBP, LDP, or other codes which transform the feature (intensity) of the image into another feature are considered appearance codes.
+*/
+
+#ifndef AppearanceCodeManager_H_INCLUDED
+#define AppearanceCodeManager_H_INCLUDED
+
+// OpenCV
+#include <cv.h>
+#include <list>
+#include "TraceMessage.h"
+
+#include "GenericFactory.h"
+#include "BaseAppearanceCode.h"
+@APPCODES_INCLUDES@
+
+namespace kifas
+{
+	
+/**
+  Manages the diferent appearance codes.
+  @ingroup core appearanceCode
+*/
+class AppearanceCodeManager
+{
+
+public:
+	/** Constructor */
+	AppearanceCodeManager();
+
+	/** Destructor */
+	~AppearanceCodeManager();
+	
+	void registerAppearanceCodeClasses();
+	
+	bool selectAppearanceCode(std::string id);
+	
+	//cv::Mat genAppearanceCode(cv::Mat input);
+	std::vector<cv::Mat> genAppearanceCode(std::vector<cv::Mat> &input);
+	int getCodeSize();
+protected:
+	cv::Ptr<BaseAppearanceCode> mSelectedAppearanceCode;
+
+};
+
+}
+
+#endif

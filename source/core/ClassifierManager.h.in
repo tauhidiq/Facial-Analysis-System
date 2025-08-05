@@ -1,0 +1,76 @@
+/**
+  @file ClassifierManager.h
+  Defines the Manager class of classifier codes, for example SVM, KNN,..., .
+*/
+
+/**
+  @defgroup classifier Classifier
+  A classifier labels a feature vector into its respective class. The system uses the BaseClassifier as the abstract class to process the algorithms.
+  And the ClassifierManager manages all the related functions to handle the classifiers, such as, registration, instantiation, etc.
+*/
+
+#ifndef ClassifierManager_H_INCLUDED
+#define ClassifierManager_H_INCLUDED
+
+// OpenCV
+#include <cv.h>
+#include <vector>
+#include "TraceMessage.h"
+
+#include "GenericFactory.h"
+#include "Definitions.h"
+#include "BaseClassifier.h"
+@CLASSIFIERS_INCLUDES@
+
+namespace kifas
+{
+
+/**
+  Manages the different Classifier instances. 
+  It has the logic to register new classifiers, and how to run them.
+  @ingroup core classifier
+*/
+class ClassifierManager
+{
+
+public:
+	/**	 Constructor	*/
+	ClassifierManager();
+
+	/**	 Destructor	*/
+	~ClassifierManager();
+
+
+	void registerClassifierClasses();
+	bool selectClassifer(std::string id);
+	
+	double runClassifierMutualVerification(cv::Mat trainningData,
+											                   std::vector<int> truthTable,
+											                   int divideNum);
+
+	double runClassifierMutialVerificationPersonIndepent(cv::Mat trainningData,
+											                   std::vector<int> truthTable,
+											                   std::vector<int> personTable);
+
+	void RunClassifier(cv::Mat trainningData,
+						           std::vector<int> &trainningTruthTable,
+						           cv::Mat testData,
+						           std::vector<int> &testResultTable);
+
+    void SetConfusionMatrix(int classNum);
+
+    void AccConfusionMatrix(std::vector<int> &testTruthTable, std::vector<int> &testResult);
+    void PrintConfusionMatrix();
+    void ReleaseConfusionMatrix();
+protected:	
+	cv::Ptr<BaseClassifier> mSelectedClassifer;
+    
+    int **mConfusionMatrix;       // for confusion matrix
+    int mClassNum;               // the number of classes of confusion matrix
+};
+
+
+
+}
+
+#endif

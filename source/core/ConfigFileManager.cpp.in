@@ -1,0 +1,744 @@
+#include <fstream>
+#include <map>
+#include <vector>
+
+#include "ConfigFileManager.h"
+#include "Exceptions.h"
+#include "FacialAnalysisFrame.h"
+#include "Definitions.h"
+#include "Parser.h"
+
+#define @OS_NAME@
+
+#ifdef OS_WINDOWS
+#include <Windows.h>
+#endif
+
+#ifdef OS_LINUX
+#include <unistd.h>
+#include <iostream>
+#include <stdio.h>
+#endif
+/**
+  Loads a configuration file from the path.
+  @param file the path of the configuration file.
+*/
+/*kifas::ConfigFileManager::ConfigFileManager(const std::string file)
+{
+  std::string path = kifas::ConfigFileManager::getConfigFilesDir() + file;  
+  std::map<std::string, NumStr> tmp;
+  mContent = kifas::Parser::parse(path, tmp);
+  mVerbosflag = true;
+}*/
+
+/**
+  Loads a configuration file, and replaces the default values from the given map.
+  @param file the path of the configuration file.
+  @param defaults the defaults values of the configuration file.
+*/
+/*
+kifas::ConfigFileManager::ConfigFileManager(const std::string file, std::map<std::string, kifas::NumStr> defaults)
+{
+	// set config file path
+  std::string path = kifas::ConfigFileManager::getConfigFilesDir() + file;    
+  mContent = kifas::Parser::parse(path, defaults);
+
+  std::map<std::string, kifas::NumStr>::iterator it;
+  for(it = defaults.begin(); it != defaults.end(); it++)
+  {
+    std::string value = mContent.find(it->first)->second;
+    if (value.compare(it->second) == 0)
+      TraceMessage::addWarning("[File: " + file + "] Using default value: \"" + it->first + " = " + value + "\"");
+  }
+
+	mVerbosflag = true;
+}
+*/
+
+kifas::ConfigFileManager::ConfigFileManager()
+{
+  //mContent = kifas::Parser::parse(path, tmp);
+//  mVerbosflag = true;
+}
+
+
+kifas::ConfigFileManager::~ConfigFileManager()
+{
+}
+
+/**
+  Loads a configuration file, and replaces the default values from the given map.
+  @param file the path of the configuration file.
+  @param defaults the defaults values of the configuration file.
+*/
+void kifas::ConfigFileManager::ConfigFileRead(const std::string file, std::map<std::string, NumStr> &config)
+{
+  // set config file path
+  std::string path = kifas::ConfigFileManager::getConfigFilesDir() + file;
+
+  std::map<std::string, kifas::NumStr> ConfigContent;
+
+  ConfigContent = kifas::Parser::parse(path, config);
+
+  std::map<std::string, kifas::NumStr>::iterator it;
+  /*for(it = config.begin(); it != config.end(); it++)
+  {
+    std::string value = ConfigContent.find(it->first)->second;
+    if (value.compare(it->second) == 0)
+      TraceMessage::addWarning("[File: " + file + "] Using default value: \"" + it->first + " = " + value + "\"");
+  }*/
+
+	config = ConfigContent;
+	//mVerbosflag = true;
+
+}
+
+void kifas::ConfigFileManager::ConfigFileWrite(const std::string file, std::map<std::string, NumStr> &config)
+{
+	// set config file path
+	std::string path = kifas::ConfigFileManager::getConfigFilesDir() + file; 
+	kifas::Parser::parseWrite(path,config);
+}
+/**
+  Get the value for the given key from the parsed configuration file.
+  @param key the string key word to get the value from.
+  @return the value of the assigned value.
+*/
+/*
+kifas::NumStr const& kifas::ConfigFileManager::getValue(std::string const& key) const
+{
+  std::map<std::string, kifas::NumStr>::const_iterator ci = mContent.find(key);
+
+  if (ci == mContent.end()) 
+    throw "Key does not exist";
+
+  return ci->second;
+}
+*/
+
+/**
+  Generates the configuration directory full path. It uses the global definition of the config directory defined in Definitions.h
+  @return the path of the configuration directory. That is, the directory where the configuration files are.
+  @see CONFIG_DIR
+*/
+
+std::string kifas::ConfigFileManager::getConfigFilesDir()
+{
+
+  char exepath[1024];
+#ifdef OS_WINDOWS
+  int nsize=256;
+  DWORD result = GetModuleFileName(NULL,exepath,nsize);
+#endif
+
+#ifdef OS_LINUX
+  char arg1[20];
+  sprintf(arg1,"/proc/%d/exe",getpid());
+  readlink(arg1,exepath,1024);
+#endif
+
+  std::string path(exepath);
+  std::size_t found = path.rfind("/");
+  if(found == std::string::npos)
+  {
+    found = path.rfind("\\");
+  }
+  path = path.substr(0, found);
+  path.append("/" + CONFIG_DIR + "/");
+  return path;
+}
+
+void kifas::ConfigFileManager::traceListString(std::list<std::string> &list)
+{
+	std::list<std::string>::iterator it;
+
+	for(it = list.begin(); it != list.end(); it++)
+	{
+		TraceMessage::addMessage("    -> ");
+		TraceMessage::addMessageLine(*it);
+	}
+}
+/*
+void kifas::ConfigFileManager::traceConfigResult()
+{
+	std::list<std::string>::iterator it;
+
+	TraceMessage::addMessage("RunType = ");
+  switch(mRunType)
+  {
+  case TRAIN:
+    TraceMessage::addMessageLine("Train only");
+    break;
+  case TEST:
+    TraceMessage::addMessageLine("Test only");
+    break;
+  case BOTH:
+    TraceMessage::addMessageLine("Train and test");
+    break;
+  }	
+
+  TraceMessage::addMessage("TrainMode = ");
+  switch(mTrainMode)
+  {
+  case SEPARATE:
+    TraceMessage::addMessageLine("Separate");
+    break;
+  case FOLD:
+    TraceMessage::addMessageLine("Folds");
+    if (mFolds > 0)
+    {
+      TraceMessage::addMessage("No. of Folds = ");
+      TraceMessage::addMessageLine(mFolds);
+    }
+    break;
+  }
+  
+  if(mImageFileList != "")
+  {
+    TraceMessage::addMessage("ImageListFile = ");
+	  TraceMessage::addMessageLine(mImageFileList);
+  }
+	if(mImageFileListTrain != "")
+  {
+    TraceMessage::addMessage("ImageListFileTrain = ");
+	  TraceMessage::addMessageLine(mImageFileListTrain);
+  }
+  if(mImageFileListTest != "")
+  {
+    TraceMessage::addMessage("ImageListFileTest = ");
+	  TraceMessage::addMessageLine(mImageFileListTest);
+  }  
+
+	TraceMessage::addMessage("ImageDir = ");
+	TraceMessage::addMessageLine(mImageDir);
+
+	TraceMessage::addMessage("Preprocessing  = ");
+	for(it = mPreprocessing.begin(); it != mPreprocessing.end(); it++)
+	{
+		TraceMessage::addMessage(*it);
+		TraceMessage::addMessage(",");
+	}
+	TraceMessage::addMessageLine("");
+
+	TraceMessage::addMessage("AppearanceCode = ");
+	TraceMessage::addMessageLine(mAppearanceCode);
+
+	TraceMessage::addMessage("FeatureRepresentation = ");
+	TraceMessage::addMessageLine(mFeatureRepresentation);
+
+	TraceMessage::addMessage("FeatureReduction = ");
+	TraceMessage::addMessageLine(mFeatureReduction);
+
+	TraceMessage::addMessage("Classifier = ");
+	TraceMessage::addMessageLine(mClassifier);
+  TraceMessage::addMessageLine("");
+}
+*/
+/**
+  This function reads all configure files, and process them.
+  @see readClassList
+  @todo Handle the exception in this function.
+*/
+
+//void kifas::ConfigFileManager::readConfigFiles()
+//{	
+	// read files which store class lists
+/*	try
+	{
+		TraceMessage::addMessageLine("Reading the list of pre-processing classes");
+		readClassList(mPreprocessingList,"preprocessing_class_list");
+		traceListString(mPreprocessingList);
+		TraceMessage::addMessageLine("");
+
+		TraceMessage::addMessageLine("Reading the list of appearance code classes");
+		readClassList(mAppearanceCodeList,"appearancecode_class_list");
+		traceListString(mAppearanceCodeList);
+		TraceMessage::addMessageLine("");
+
+		TraceMessage::addMessageLine("Reading the list of feature representation classes");
+		readClassList(mFeatureRepresentationList,"featurerepresentation_class_list");
+		traceListString(mFeatureRepresentationList);
+		TraceMessage::addMessageLine("");
+
+		TraceMessage::addMessageLine("Reading the list of feature reduction classes");
+		readClassList(mFeatureReductionList,"featurereduction_class_list");
+		traceListString(mFeatureReductionList);
+		TraceMessage::addMessageLine("");
+
+		TraceMessage::addMessageLine("Reading the list of classifier classes");
+		readClassList(mClassifierList,"classifier_class_list");
+		traceListString(mClassifierList);
+		TraceMessage::addMessageLine("");
+
+
+		readSystemConfigFile();
+
+		traceConfigResult();
+	}
+	catch(KifasExpeption e)
+	{		
+		throw;
+	}
+	*/
+//}
+
+
+
+/**
+* Trims the spaces in the string. At the same time it maintains the spaces inside quotes.
+* @param[in|out] cStr The string to trim the spaces from. The string is modified in this process.
+*/
+/*
+void kifas::ConfigFileManager::deleteSpace(char *cStr)
+{
+	int i=0,j=0;
+	char temp[STRLEN];
+	memset(temp,0,sizeof(temp));
+
+	bool deleteSpace = true;
+
+	for(i=0; cStr[i]!='\0'; i++)
+	{
+		if(cStr[i] == '"')
+		{
+			deleteSpace = !deleteSpace;
+			continue;
+		}
+    // copy the char if it isn't space, or if I'm inside the quotes
+		if(cStr[i] != ' ' || deleteSpace == false )
+		{
+			temp[j] = cStr[i];
+			j++;
+		}
+	}
+
+	memset(cStr,0,sizeof(cStr));
+	strcpy(cStr,temp);
+
+}
+*/
+
+/**
+  This function parses the configuration file: facial_analysis.conf.
+*/
+/*
+void kifas::ConfigFileManager::readSystemConfigFile()
+{
+	
+	std::string SystemConfigFile = "facial_analysis.conf";
+	//std::string SystemConfigFilePath;
+	//SystemConfigFilePath = getConfigFilesDir() + "facial_analysis.conf";
+	
+
+	std::map<std::string, kifas::NumStr> SystemConfig;
+	SystemConfig["runtype"] = "both";							// Run Type "train", "test", "both"
+	SystemConfig["cache"] = "false";								// true | false
+	SystemConfig["traincachefile"] ="";				// default cache "train.db"
+	
+	SystemConfig["trainmode"] ="fold";						// seperate , fold
+	
+	// for trainMode = seperate
+	SystemConfig["imagelistfiletrain"] ="";		// ex) "F:\Documents\Data set\FERET-Cropped\norm-rot\fa.lst"
+	SystemConfig["imagelistfiletest"] = "";		
+
+	// for TrainMode = fold
+	SystemConfig["folds"] = "10";								// default = 10
+	SystemConfig["imagelistfile"] = "";				// image file list
+
+	// ColOrder
+	SystemConfig["colorder"] = "name expid";						// image file list
+	
+	SystemConfig["imagedir"] = "";
+	SystemConfig["preprocessing"] = "";
+	SystemConfig["appearancecode"] = "ldp";
+	SystemConfig["featurerepresentation"] ="uniformhistogram";
+	SystemConfig["featurereduction"] = "";
+	SystemConfig["classifier"] = "templatematching";
+
+	kifas::ConfigFileManager::ConfigFileRead(SystemConfigFile, SystemConfig);
+	
+	// run type
+	std::string attrbutevalue = SystemConfig["runtype"];
+	if (attrbutevalue.compare("train") == 0)
+  {
+		mRunType = TRAIN;
+  }
+  else if (attrbutevalue.compare("test") == 0) 
+  {
+		mRunType = TEST;
+  }
+  else if (attrbutevalue.compare("both") == 0 )
+	{
+		mRunType = BOTH;
+	}
+
+	// cache
+	attrbutevalue = SystemConfig["cache"];
+	if (attrbutevalue.compare("true") == 0)
+  {
+		mCache = true;
+  }
+	else
+	{
+		mCache = false;
+	}
+
+	// TrainCacheFile
+  mTrainCacheFile = SystemConfig["traincachefile"];
+
+	// trainning mode
+	attrbutevalue = SystemConfig["trainmode"];
+	if (attrbutevalue.compare("separate") == 0)
+  {
+		mTrainMode = SEPARATE;
+  }
+	else
+	{
+		mTrainMode = FOLD;
+	}
+
+
+	mImageFileListTrain		 = SystemConfig["imagelistfiletrain"];
+	mImageFileListTest		 = SystemConfig["imagelistfiletest"];
+	mFolds								 = SystemConfig["folds"];
+
+	mImageFileList				  = SystemConfig["imagelistfile"];
+	mColOrder								=	SystemConfig["colorder"];
+	
+	mImageDir								= SystemConfig["imagedir"];
+	mAppearanceCode					= SystemConfig["appearancecode"];
+	mFeatureRepresentation  =	SystemConfig["featurerepresentation"];
+	mFeatureReduction				=	SystemConfig["featurereduction"];
+	mClassifier							=	SystemConfig["classifier"];
+
+
+	attrbutevalue = SystemConfig["preprocessing"];
+
+	if(attrbutevalue.compare("") != 0)
+	{
+		size_t current;
+		size_t next = -1;
+		do
+		{
+			current =next +1;
+			next = attrbutevalue.find_first_of(",",current);
+			mPreprocessing.push_back(attrbutevalue.substr(next-current));
+		}while(next != std::string::npos);
+	}
+*/
+	
+/*	std::string SystemConfigFilePath;
+	SystemConfigFilePath = getConfigFilesDir() + "facial_analysis.conf";
+	char linebuffer[STRLEN];
+
+	std::ifstream SystemConfigFile;
+	std::map<std::string,int> configmap;
+	std::map<std::string,int>::iterator it;
+	configmap.insert(std::pair<std::string,int>("RunType", RUN_TYPE));
+	configmap.insert(std::pair<std::string,int>("ImageListFile", IMAGE_LIST_FILE));
+  configmap.insert(std::pair<std::string,int>("ImageListFileTrain", IMAGE_LIST_FILE_TRAIN));
+  configmap.insert(std::pair<std::string,int>("ImageListFileTest", IMAGE_LIST_FILE_TEST));
+  configmap.insert(std::pair<std::string,int>("TrainMode", TRAIN_MODE));
+  configmap.insert(std::pair<std::string,int>("Folds", FOLDS));
+	configmap.insert(std::pair<std::string,int>("ImageDir", IMAGE_DIR));
+	configmap.insert(std::pair<std::string,int>("Preprocessing", PREPROCESSING));
+	configmap.insert(std::pair<std::string,int>("AppearanceCode", APPEARANCE_CODE));
+	configmap.insert(std::pair<std::string,int>("FeatureRepresentation", FEATURE_REPRESENTATION));
+	configmap.insert(std::pair<std::string,int>("FeatureReduction", FEATURE_REDUCTION));
+	configmap.insert(std::pair<std::string,int>("Classifier", CLASSIFIER));
+	
+  
+
+	SystemConfigFile.exceptions ( std::ifstream::failbit | std::ifstream::badbit | std::ifstream::eofbit );
+
+	// read facial_analysis.conf file
+	try
+	{
+		SystemConfigFile.open(SystemConfigFilePath,std::ios_base::in);
+	}
+	catch(std::ifstream::failure e)
+	{
+    TraceMessage::addError("While opening \"" + SystemConfigFilePath + "\", an exception occurred!!\n"+e.what());    
+		throw KifasExpeption();
+	}
+
+	try
+	{
+		while(!SystemConfigFile.eof())
+		{
+			// read a line
+      SystemConfigFile.getline(linebuffer,STRLEN);
+      			
+			// if the first string is '#', this line will be a comment      
+			if(linebuffer[0] != '#')
+			{
+				// trim spaces, but maintain them inside quotes
+				deleteSpace(linebuffer);
+
+				// skip lines which consist of space or new line characters
+				if(strlen(linebuffer) > 0)
+				{
+					char* pch;
+				
+					// get the attribute
+					pch = strtok (linebuffer,"=");
+					if(pch == NULL)
+					{
+						TraceMessage::addError("In the config file, an illegal setting was found.");
+						TraceMessage::addError(linebuffer);
+
+						throw KifasExpeption();
+					}
+
+					// find attribute string in configmap 
+					it = configmap.find(pch);
+
+					// if attribute string is not found in configmap
+					if(it == configmap.end())
+					{
+            TraceMessage::addWarning(std::string(pch) + " is an invalid attribute; and I'm ignoring it. Check the config file.");
+            continue;
+					}
+
+					// get value of attribute
+					pch = strtok (NULL,"=");
+
+					// to store attribute value
+					char attributeValue[STRLEN];
+					
+					// if null, user didn't set any value as value of attribute
+					// in this case, we assgin "" string
+					if(pch != NULL)
+						strcpy(attributeValue,pch);
+					else
+						strcpy(attributeValue,"");
+
+					// Second is ID of attribute
+					switch(it->second)
+					{
+						case RUN_TYPE:
+						  // valid value of RUN type attribute
+							if (_strcmpi(attributeValue,"train") == 0)
+              {
+                mRunType = TRAIN;
+              }
+              else if (_strcmpi(attributeValue,"test") == 0) 
+              {
+                mRunType = TEST;
+              }
+              else if (_strcmpi(attributeValue,"both") == 0 )
+							{
+								mRunType = BOTH;
+							}
+							else // invalid value of Run Type attribute
+							{
+                TraceMessage::addError( std::string(attributeValue) + " is an invalid attribute value for " + it->first);
+								throw KifasExpeption();							
+							}
+							break;
+
+						case IMAGE_LIST_FILE:
+							mImageFileList = attributeValue;
+							break;
+
+            case IMAGE_LIST_FILE_TRAIN:
+              mImageFileListTrain = attributeValue;
+              break;            
+
+            case IMAGE_LIST_FILE_TEST:
+              mImageFileListTest = attributeValue;
+              break;
+
+            case TRAIN_MODE:
+              //check for valid values
+              if( _strcmpi(attributeValue, "fold") == 0 )
+              {
+                mTrainMode = FOLD;
+              }
+              else if ( _strcmpi(attributeValue, "separate") == 0 )
+              {
+                mTrainMode = SEPARATE;
+              }
+              else
+              {
+                TraceMessage::addError( std::string(attributeValue) + " is an invalid attribute value for " + it->first);
+								throw KifasExpeption();
+              }
+              break;
+            
+            case FOLDS:             
+              mFolds = atoi(attributeValue);
+              if (mFolds == 0)
+              {
+                TraceMessage::addWarning("I couldn't parse the value of Folds, or it was zero");
+              }
+              break;
+
+						case IMAGE_DIR:
+							mImageDir = attributeValue;
+							break;
+
+						case PREPROCESSING:
+							 pch = strtok (attributeValue,",");
+							 while (pch != NULL)
+							 {
+								if(checkList(mPreprocessingList,pch))
+								{
+									mPreprocessing.push_back(pch);
+								}
+								else
+								{
+                  TraceMessage::addError("\""+ std::string(pch) + "\" is not a registered preprocessing algorithm!");
+									throw KifasExpeption();
+								}					
+							
+								pch = strtok (NULL, ",");
+							}
+							break;
+
+						case APPEARANCE_CODE:
+							if(checkList(mAppearanceCodeList,attributeValue))
+							{
+								mAppearanceCode = attributeValue;
+							}
+							else
+							{
+                TraceMessage::addError("\"" + std::string(pch) + "\" is not a registered appearance code algorithm!");
+								throw KifasExpeption();
+							}
+							
+							break;
+
+						case FEATURE_REPRESENTATION:
+							if(checkList(mFeatureRepresentationList,attributeValue))
+							{
+								mFeatureRepresentation = attributeValue;
+							}
+							else
+							{
+                TraceMessage::addError("\"" + std::string(pch) + "\" is not a registered feature representation algorithm!");
+								throw KifasExpeption();
+							}
+						
+							break;
+
+						case FEATURE_REDUCTION:
+							if(checkList(mFeatureReductionList,attributeValue))
+							{
+								mFeatureReduction = attributeValue;
+							}
+							else
+							{
+                TraceMessage::addError("\"" + std::string(pch) + "\" is not a registered feature reduction algorithm!");
+								throw KifasExpeption();
+							}
+							break;
+
+						case CLASSIFIER:
+							if(checkList(mClassifierList,attributeValue))
+							{
+								mClassifier = attributeValue;
+							}
+							else
+							{
+                TraceMessage::addError("\"" + std::string(pch) + "\" is not a registered classifier algorithm!");
+								throw KifasExpeption();
+							}
+							break;
+					} // end of switch-case									
+				}// end of if
+			}// end of if comment		
+		}// end of while
+	}
+	catch(std::ifstream::failure e)
+	{
+		if(SystemConfigFile.eof() && SystemConfigFile.fail())
+		{
+			SystemConfigFile.close();
+			return;
+		}
+
+		SystemConfigFile.close();
+		throw KifasExpeption();
+	}
+	*/
+	//return true;
+//}
+
+/**
+  Loads the class list from the file pointed by path into the list.
+  @param list is the final list of classes.
+  @param path is the file path which contains a list of classes to register.
+*/
+/*
+void kifas::ConfigFileManager::readClassList(std::list<std::string> &list, std::string path)
+{
+	std::string ListFilePath;
+	std::string ClassName;
+	ListFilePath = getConfigFilesDir() + path;
+
+	std::ifstream ListFile;
+	
+	ListFile.exceptions ( std::ifstream::failbit | std::ifstream::badbit );
+
+	try
+	{
+		ListFile.open(ListFilePath,std::ios_base::in);
+	}
+	catch(std::ifstream::failure e)
+	{
+		std::cout<<e.what()<<std::endl;
+		throw KifasExpeption();
+		//ListFile.close();
+		//return false;
+	}
+
+	try
+	{
+		while(!ListFile.eof())
+		{
+			ListFile>>ClassName;
+			list.push_back(ClassName);
+		}
+	}
+	catch(std::ifstream::failure e)
+	{
+		if(ListFile.eof() && ListFile.fail())
+		{
+			ListFile.close();
+			return;
+		}
+
+		ListFile.close();
+		throw KifasExpeption();
+	}
+
+	ListFile.close();
+
+	return;
+}
+*/
+
+/**
+	Checks whether the Classifier List has the string of input or not
+  @param list
+	@param input input string which will be checked 
+	@return true if the Classifier List has the string of input or false if not 
+*/
+/*
+bool kifas::ConfigFileManager::checkList(std::list<std::string> &list, std::string input)
+{
+	if(input.compare("") ==0)
+		return true;
+
+	std::list<std::string>::iterator it;
+
+	for(it = list.begin(); it != list.end(); it++)
+	{
+		if(it->compare(input) == 0)
+			return true;
+	}
+
+	return false;
+}
+*/

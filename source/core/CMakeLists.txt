@@ -1,0 +1,16 @@
+add_subdirectory(Support)
+add_library(AppearanceCodeManager AppearanceCodeManager.cpp)
+add_library(ClassifierManager ClassifierManager.cpp)
+add_library(ConfigFileManager ConfigFileManager.cpp)
+
+add_library(DistanceManager DistanceManager.cpp)
+add_library(Exceptions Exceptions.cpp)
+add_library(FacialAnalysisFrame FacialAnalysisFrame.cpp)
+
+add_library(FeatureReductionManager FeatureReductionManager.cpp)
+add_library(FeatureRepresentationManager FeatureRepresentationManager.cpp)
+add_library(ImageFileManager ImageFileManager.cpp)
+
+
+add_library(PreprocessingManager PreprocessingManager.cpp)
+add_library(TraceMessage TraceMessage.cpp)

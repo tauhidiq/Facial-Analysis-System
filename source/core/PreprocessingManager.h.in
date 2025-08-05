@@ -1,0 +1,62 @@
+/**
+  @file PreprocessingManager.h
+  This files defines the manager class for pre-processing.
+*/
+
+#ifndef PreprocessingManager_H_INCLUDED
+#define PreprocessingManager_H_INCLUDED
+
+// OpenCV
+#include <cv.h>
+#include <list>
+
+#include "GenericFactory.h"
+#include "BasePreprocessing.h"
+#include "TraceMessage.h"
+@PREPROS_INCLUDES@
+
+namespace kifas
+{
+	
+	
+class PreprocessingManager
+{
+
+public:
+	/**
+	 Constructor
+	*/
+	PreprocessingManager();
+
+	/**
+	 Destructor
+	*/
+	~PreprocessingManager();
+
+	/**
+	 Register all pre-processing instances to the GenericFactory 
+	*/
+	void registerPreprocessingClasses();
+	
+
+	/**
+	 Add a pre-processing instance to the pre-pocesing list which stores BasePreprocessing class pointers 
+	*/
+	bool addPreprocessingInstanceToList(std::string id);
+	
+	// for a static image
+	//void runAllPreprocessing(cv::Mat &input);
+
+    // for sequence image or several images
+    void runAllPreprocessing(std::vector<cv::Mat> &input);
+
+protected:
+	std::list< cv::Ptr<BasePreprocessing> > mPreprocessingList;
+
+};
+
+
+
+}
+
+#endif
